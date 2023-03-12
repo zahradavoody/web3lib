@@ -1,0 +1,608 @@
+const Web3 = require('web3');
+const web3 = new Web3('https://rpc.ankr.com/eth_goerli');
+const zWalletContract = new web3.eth.Contract([
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "deposit",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "t",
+                "type": "uint256"
+            }
+        ],
+        "name": "Deposit",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_tax",
+                "type": "uint256"
+            }
+        ],
+        "name": "setTax",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "userAddress",
+                "type": "address"
+            }
+        ],
+        "name": "withdrow",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "walletBalance",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+], "0xc42502bF62BaC28480c613E113416529EDcf3a3f");
+const api = require('etherscan-api').init('R8VQCQV35H1RB58U35ZB8Z3TK82GXXG17U','goerli', 3000);
+const Events = require('events');
+const awaitTransactionMined = require ('await-transaction-mined');
+let th=0;
+let depositTh=0;
+
+//class MyEmitter extends EventEmitter {}
+
+const myEmitter = new Events.EventEmitter();
+
+
+async function depositMain(valueInput) {
+
+    const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+    const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+
+    const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+    console.log("nonce: ",nonce);
+
+    const data_hex = await zWalletContract.methods.Deposit( valueInput).encodeABI();
+    console.log('data_hex: ',data_hex);
+
+    const gasPrice = await web3.eth.getGasPrice();
+    console.log("\ngasPrice of the ethereum network: ", gasPrice);
+
+    const transaction = {
+        'to': '0x4F09c3c64796511FC909bA40e69f7eCA03241435', // faucet address to return eth
+        'value': valueInput,
+        'gas': 300000,
+        'gasPrice': gasPrice,
+        'nonce': nonce,
+        data: data_hex,
+        // optional data field to send message or execute smart contract
+    };
+
+    const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+
+    try{
+        await web3.eth.sendSignedTransaction(signedTx.rawTransaction).once("receipt", receipt => {
+            console.log("transaction reciept: ",receipt);
+            console.log("The hash of your transaction is:", receipt.transactionHash);
+            console.log("The status of your transaction is:", receipt.status);
+            depositTh= receipt.transactionHash;
+
+        } );
+
+
+    } catch (err) {
+        console.error("❗Something went wrong while submitting your transaction:", err);
+    }
+    return depositTh;
+    }
+
+
+async function withdrowMain() {
+
+    const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+    const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+
+    const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+    console.log("nonce: ",nonce);
+
+    const data_hex = await zWalletContract.methods.withdrow( 100, myAddress).encodeABI();
+    console.log('data_hex: ',data_hex);
+
+    const transaction = {
+        'to': '0x4F09c3c64796511FC909bA40e69f7eCA03241435', // faucet address to return eth
+        'value': 0,
+        'gas': 300000,
+        'gasPrice': 20000000000,
+        'nonce': nonce,
+        data: data_hex,
+        // optional data field to send message or execute smart contract
+    };
+
+    const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+
+    try{
+        const hash = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        console.log("The hash of your transaction is:", hash.transactionHash);
+        return hash.transactionHash;
+    } catch (err) {
+        console.error("❗Something went wrong while submitting your transaction:", err);
+    }
+
+
+    const accountBalance = await zWalletContract.methods.walletBalance("0x1481A197536496C85D98dbb7349AB1b08c25Df1A");
+    console.log("account balance after withdraw: ", accountBalance);
+
+
+}
+
+
+async function taxMain(tax_input) {
+
+    const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+    const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+
+    const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+    console.log("nonce: ",nonce);
+
+    const data_hex = await zWalletContract.methods.setTax(tax_input).encodeABI();
+    console.log('data_hex: ',data_hex);
+
+
+    //var provider = providers.getDefaultProvider();
+
+   const gasPrice = await web3.eth.getGasPrice();
+   console.log("gasPrice of the ethereum network: ", gasPrice);
+
+
+    const transaction = {
+        'to': '0xc42502bF62BaC28480c613E113416529EDcf3a3f', // faucet address to return eth
+        'value': 0,
+        'gas': 300000,
+        'gasPrice': gasPrice,
+        'nonce': nonce,
+        data: data_hex,
+        // optional data field to send message or execute smart contract
+    };
+
+    const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+    console.log("signedTx: ", signedTx);
+   try{
+       await web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(function(receipt){
+           console.log("receipt.status: ",receipt.status, "receipt.transactionHash: ", receipt.transactionHash);
+           th=  receipt.transactionHash;
+
+       })
+        //const hash =
+        //     await web3.eth.sendSignedTransaction(signedTx.rawTransaction).once("receipt", (receipt)=> {
+        //         console.log("receipt.status: ",receipt.status, "receipt.transactionHash: ", receipt.transactionHash);
+        //         th= receipt.transactionHash
+        //
+        //    });
+        //console.log("The hash of your transaction is:", hash.transactionHash);
+
+        //hash.on('confirmation', function(confNumber, receipt, latestBlockHash){console.log()}))
+
+        // const myEventHandler = function () {
+        //     console.log('I hear a scream!');
+        // }
+
+       // // myEmitter.addListener( )
+       //      .on('confirmation', myEventHandler)
+       //      .then()
+       // myEmitter.emit('confirmation');
+
+
+        // hash..on('confirmation',console.log(hash.status));
+
+        //const minedTxReceipt = await awaitTransactionMined.awaitTx(web3, hash.transactionHash);
+        //console.log("transaction receipt status : ", minedTxReceipt.status);
+       // const transaction = await api.proxy.eth_getTransactionByHash(hash.transactionHash);
+       // console.log("The status of your transaction is:", transaction.status);
+       //  return hash.transactionHash;
+
+     return th;
+    } catch (err) {
+        console.error("❗Something went wrong while submitting your transaction:", err);
+    }
+
+}
+
+
+module.exports = { taxMain, depositMain };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// const Web3 = require('web3');
+// //Contract.setProvider('https://goerli.infura.io/v3/488d284548e1454bac44aa2d6e2df746');
+// //const web3 = new Web3('https://eth.getblock.io/36384d06-4bb8-4eb1-a55a-d495f7969515/goerli/');
+// const web3 = new Web3('https://rpc.ankr.com/eth_goerli');
+// const zWalletContract = new web3.eth.Contract([
+//     {
+//         "anonymous": false,
+//         "inputs": [
+//             {
+//                 "indexed": true,
+//                 "internalType": "address",
+//                 "name": "previousOwner",
+//                 "type": "address"
+//             },
+//             {
+//                 "indexed": true,
+//                 "internalType": "address",
+//                 "name": "newOwner",
+//                 "type": "address"
+//             }
+//         ],
+//         "name": "OwnershipTransferred",
+//         "type": "event"
+//     },
+//     {
+//         "anonymous": false,
+//         "inputs": [
+//             {
+//                 "indexed": false,
+//                 "internalType": "address",
+//                 "name": "",
+//                 "type": "address"
+//             },
+//             {
+//                 "indexed": false,
+//                 "internalType": "uint256",
+//                 "name": "",
+//                 "type": "uint256"
+//             },
+//             {
+//                 "indexed": false,
+//                 "internalType": "uint256",
+//                 "name": "",
+//                 "type": "uint256"
+//             }
+//         ],
+//         "name": "deposit",
+//         "type": "event"
+//     },
+//     {
+//         "inputs": [
+//             {
+//                 "internalType": "uint256",
+//                 "name": "t",
+//                 "type": "uint256"
+//             }
+//         ],
+//         "name": "Deposit",
+//         "outputs": [],
+//         "stateMutability": "payable",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [],
+//         "name": "renounceOwnership",
+//         "outputs": [],
+//         "stateMutability": "nonpayable",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [
+//             {
+//                 "internalType": "uint256",
+//                 "name": "_tax",
+//                 "type": "uint256"
+//             }
+//         ],
+//         "name": "setTax",
+//         "outputs": [],
+//         "stateMutability": "nonpayable",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [
+//             {
+//                 "internalType": "address",
+//                 "name": "newOwner",
+//                 "type": "address"
+//             }
+//         ],
+//         "name": "transferOwnership",
+//         "outputs": [],
+//         "stateMutability": "nonpayable",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [
+//             {
+//                 "internalType": "uint256",
+//                 "name": "amount",
+//                 "type": "uint256"
+//             },
+//             {
+//                 "internalType": "address",
+//                 "name": "userAddress",
+//                 "type": "address"
+//             }
+//         ],
+//         "name": "withdrow",
+//         "outputs": [],
+//         "stateMutability": "nonpayable",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [],
+//         "name": "owner",
+//         "outputs": [
+//             {
+//                 "internalType": "address",
+//                 "name": "",
+//                 "type": "address"
+//             }
+//         ],
+//         "stateMutability": "view",
+//         "type": "function"
+//     },
+//     {
+//         "inputs": [
+//             {
+//                 "internalType": "address",
+//                 "name": "",
+//                 "type": "address"
+//             }
+//         ],
+//         "name": "walletBalance",
+//         "outputs": [
+//             {
+//                 "internalType": "uint256",
+//                 "name": "",
+//                 "type": "uint256"
+//             }
+//         ],
+//         "stateMutability": "view",
+//         "type": "function"
+//     }
+// ], "0xc42502bF62BaC28480c613E113416529EDcf3a3f");
+//
+// //zWalletContract.methods.Deposit(10).send({from:'0x1481A197536496C85D98dbb7349AB1b08c25Df1A', value: '10000'});
+//
+//
+// async function depositmain() {
+//     // require('dotenv').config();
+//     const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+//     //const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+//     // const web3 = createAlchemyWeb3(API_URL);
+//     const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+//
+//     const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+//     console.log(nonce);
+//     const data_hex = await zWalletContract.methods.Deposit( 10000).encodeABI();
+//     console.log(data_hex);
+//     const transaction = {
+//         'to': '0x4F09c3c64796511FC909bA40e69f7eCA03241435', // faucet address to return eth
+//         'value': 1000,
+//         'gas': 300000,
+//         'gasPrice': 20000000000,
+//         'nonce': nonce,
+//         data: data_hex,
+//         // optional data field to send message or execute smart contract
+//     };
+//
+//     const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+//
+//     web3.eth.sendSignedTransaction(signedTx.rawTransaction, function(error, hash) {
+//         if (!error) {
+//             console.log("🎉 The hash of your transaction is: ", hash, "\n Check goerli's Mempool to view the status of your transaction!");
+//         } else {
+//             console.log("❗Something went wrong while submitting your transaction:", error)
+//         }
+//     });
+// }
+//
+//
+// async function withdrowMain() {
+//     // require('dotenv').config();
+//     const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+//     //const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+//     // const web3 = createAlchemyWeb3(API_URL);
+//     const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+//
+//     const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+//     console.log(nonce);
+//     const data_hex = await zWalletContract.methods.withdrow( 100, myAddress).encodeABI();
+//     console.log(data_hex);
+//     const transaction = {
+//         'to': '0x4F09c3c64796511FC909bA40e69f7eCA03241435', // faucet address to return eth
+//         'value': 0,
+//         'gas': 300000,
+//         'gasPrice': 20000000000,
+//         'nonce': nonce,
+//         data: data_hex,
+//         // optional data field to send message or execute smart contract
+//     };
+//
+//     const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+//
+//     web3.eth.sendSignedTransaction(signedTx.rawTransaction, function(error, hash) {
+//         if (!error) {
+//             console.log("🎉 The hash of your transaction is: ", hash, "\n Check goerli's Mempool to view the status of your transaction!");
+//         } else {
+//             console.log("❗Something went wrong while submitting your transaction:", error);
+//         }
+//     });
+//
+//     await zWalletContract.methods.walletBalance("0x1481A197536496C85D98dbb7349AB1b08c25Df1A").call() .then(  (value) => {
+//         console.log(value);  } ) ;
+// }
+//
+// //depositmain();
+// //withdrowMain();
+//
+// // zWalletContract.methods.walletBalance("0x1481A197536496C85D98dbb7349AB1b08c25Df1A").call() .then(  (value) => {
+// //     console.log(value);  } ) ;
+// //
+//
+// async function taxMain( tax_input) {
+//     // require('dotenv').config();
+//     const  PRIVATE_KEY  = '7c01e716b20b76caf7c4c9c8db9d14e832a39e53cf543fba0e6222e8499dece5' ;
+//     //const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+//     // const web3 = createAlchemyWeb3(API_URL);
+//     const myAddress = '0x1481A197536496C85D98dbb7349AB1b08c25Df1A' //TODO: replace this address with your own public address
+//
+//     const nonce = await web3.eth.getTransactionCount(myAddress, 'latest'); // nonce starts counting from 0
+//     console.log("nonce: " + nonce);
+//     const data_hex = await zWalletContract.methods.setTax( tax_input).encodeABI();
+//     console.log(data_hex);
+//     const transaction = {
+//         'to': '0xc42502bF62BaC28480c613E113416529EDcf3a3f', // faucet address to return eth
+//         'value': 0,
+//         'gas': 800000,
+//         'gasPrice': 8000000000,
+//         'nonce': nonce,
+//         'data': data_hex ,
+//         // optional data field to send message or execute smart contract
+//     };
+//
+//     const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
+//
+//    // web3.eth.sendSignedTransaction(signedTx.rawTransaction, function (error, hash) {
+//    //         if (!error) {
+//    //             console.log("🎉 The hash of your transaction is: ", hash, "\n Check goerli's Mempool to view the status of your transaction!");
+//    //             // const promiseA = new Promise((resolve, reject) => {
+//    //             //     return hash;
+//    //             // });
+//    //             //return promiseA ;
+//    //             //callback({transactionHash: hash});
+//    //             } else {
+//    //             console.log("❗Something went wrong while submitting your transaction:", error);
+//    //             res = error;
+//    //         }
+//
+//       // });
+//     try{
+//         const hash = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+//         console.log("The hash of your transaction is:", hash.transactionHash);
+//         return hash.transactionHash;
+//     } catch (err) {
+//         console.error(err);
+//     }
+//
+//
+//
+//
+//
+//     // await zWalletContract.methods.walletBalance("0x1481A197536496C85D98dbb7349AB1b08c25Df1A").call() .then(  (value) => {
+//     //     console.log(value);  } ) ;
+// }
+//
+// //taxMain(15);
+//
+// module.exports = { taxMain };
